@@ -10,7 +10,7 @@ class UserHomepage extends StatefulWidget {
   State<UserHomepage> createState() => _UserHomepageState();
 }
 
-class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMixin {
+class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
@@ -23,10 +23,12 @@ class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAnimations();
     _loadUserData();
     _loadJoinedBusinesses();
   }
+
 
   void _initAnimations() {
     _fadeController = AnimationController(
@@ -128,11 +130,11 @@ class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMix
     }
   }
 
-  Future<void> _loadJoinedBusinesses() async {
+  Future<void> _loadJoinedBusinesses({bool forceRefresh = false}) async {
     try {
       final authService = AuthService();
       // Get user's business memberships
-      final memberships = await authService.getUserBusinessMemberships();
+      final memberships = await authService.getUserBusinessMemberships(forceRefresh: forceRefresh);
       print('DEBUG: API Response: $memberships');
       
       if (memberships != null && memberships['success'] == true) {
@@ -183,9 +185,19 @@ class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMix
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Refresh businesses when app comes back to foreground
+      _loadJoinedBusinesses(forceRefresh: true);
+    }
   }
 
   @override
@@ -203,7 +215,7 @@ class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMix
                 child: RefreshIndicator(
                   onRefresh: () async {
                     await _loadUserData();
-                    await _loadJoinedBusinesses();
+                    await _loadJoinedBusinesses(forceRefresh: true);
                   },
                   child: SingleChildScrollView(
                     child: Column(
@@ -564,7 +576,7 @@ class _UserHomepageState extends State<UserHomepage> with TickerProviderStateMix
                       ),
                       child: Center(
                         child: Text(
-                          business['businessName']?.substring(0, 1).toUpperCase() ?? 'B',
+                          business['businessName']?.isNotEmpty == true ? business['businessName'].substring(0, 1).toUpperCase() : 'B',
                           style: TextStyle(
                             color: NeutralThemeHelper.textOnPrimaryColor,
                             fontSize: 18.sp,

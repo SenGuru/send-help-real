@@ -306,7 +306,7 @@ class _UserAllBusinessesPageState extends State<UserAllBusinessesPage> {
                       ),
                       child: Center(
                         child: Text(
-                          business['businessName']?.substring(0, 1).toUpperCase() ?? 'B',
+                          business['businessName']?.isNotEmpty == true ? business['businessName'].substring(0, 1).toUpperCase() : 'B',
                           style: TextStyle(
                             color: NeutralThemeHelper.textOnPrimaryColor,
                             fontSize: 24.sp,

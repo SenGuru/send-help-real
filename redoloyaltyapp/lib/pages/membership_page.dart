@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../colors.dart';
 import '../providers/app_state_provider.dart';
 import '../utils/theme_helper.dart';
@@ -39,6 +40,38 @@ class _MembershipPageState extends State<MembershipPage>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Generate unique QR code data for the user
+  String? _generateUserQRData(AppStateProvider appState) {
+    final user = appState.currentUser;
+    final businessCode = appState.currentBusinessCode;
+    
+    if (user == null || businessCode == null) return null;
+    
+    // Generate a unique QR code string using the same format as home_page
+    // Format: appUserId|businessCode|timestamp
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${user.id}|$businessCode|$timestamp';
+  }
+
+  // Get user's member ID (fallback if not available from backend)
+  String _getUserMemberId(AppStateProvider appState) {
+    final user = appState.currentUser;
+    if (user == null) return 'MEMBER001';
+    
+    // Generate a simple member ID based on user ID
+    final userId = user.id;
+    final hashString = userId.hashCode.abs().toString().padLeft(6, '0');
+    return 'MB${_safeSubstring(hashString, 0, 6)}';
+  }
+
+  // Safe substring helper to avoid RangeError
+  String _safeSubstring(String text, int start, [int? end]) {
+    if (text.isEmpty) return text;
+    final safeStart = start.clamp(0, text.length);
+    final safeEnd = end != null ? end.clamp(safeStart, text.length) : text.length;
+    return text.substring(safeStart, safeEnd);
   }
 
   @override
@@ -105,24 +138,30 @@ class _MembershipPageState extends State<MembershipPage>
   Widget _buildDigitalCard(AppStateProvider appState) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(24.r),
+      padding: EdgeInsets.all(28.r),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             ThemeHelper.getPrimaryColor(appState.theme),
-            ThemeHelper.getTextColor(appState.theme),
-            ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.8),
+            ThemeHelper.getAccentColor(appState.theme),
+            ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.9),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          stops: const [0.0, 0.5, 1.0],
+          stops: const [0.0, 0.6, 1.0],
         ),
-        borderRadius: BorderRadius.circular(20.r),
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.3),
-            blurRadius: 20.r,
-            offset: Offset(0, 10.h),
+            color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.4),
+            blurRadius: 25.r,
+            offset: Offset(0, 12.h),
+            spreadRadius: 2.r,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10.r,
+            offset: Offset(0, 4.h),
           ),
         ],
       ),
@@ -142,7 +181,7 @@ class _MembershipPageState extends State<MembershipPage>
                       borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: Text(
-                      'GOLD MEMBER',
+                      appState.getCurrentUserRanking()?.title.toUpperCase() ?? 'MEMBER',
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.bold,
@@ -153,7 +192,7 @@ class _MembershipPageState extends State<MembershipPage>
                   ),
                   SizedBox(height: 16.h),
                   Text(
-                    'John Doe',
+                    appState.currentUser?.displayName ?? 'User',
                     style: TextStyle(
                       fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
@@ -162,7 +201,7 @@ class _MembershipPageState extends State<MembershipPage>
                   ),
                   SizedBox(height: 4.h),
                   Text(
-                    'Member ID: LYL2023001',
+                    'Member ID: ${_getUserMemberId(appState)}',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: ThemeHelper.getSecondaryColor(appState.theme),
@@ -199,7 +238,7 @@ class _MembershipPageState extends State<MembershipPage>
           Row(
             children: [
               Expanded(
-                child: _buildCardStat(appState,'Points Balance', '2,450'),
+                child: _buildCardStat(appState,'Points Balance', '${appState.currentUser?.points ?? 0}'),
               ),
               Container(
                 width: 1.w,
@@ -208,7 +247,7 @@ class _MembershipPageState extends State<MembershipPage>
               ),
               SizedBox(width: 24.w),
               Expanded(
-                child: _buildCardStat(appState,'Member Since', 'Jan 2023'),
+                child: _buildCardStat(appState,'Member Since', appState.currentUser?.memberSince ?? '2025'),
               ),
             ],
           ),
@@ -230,12 +269,13 @@ class _MembershipPageState extends State<MembershipPage>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '**** **** **** 2023',
+                  '**** **** **** ${_safeSubstring(_getUserMemberId(appState), 2)}',
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
                     color: ThemeHelper.getCardBackgroundColor(appState.theme),
                     letterSpacing: 2.w,
+                    fontFamily: 'monospace',
                   ),
                 ),
                 Icon(
@@ -277,69 +317,159 @@ class _MembershipPageState extends State<MembershipPage>
 
   Widget _buildQRCodeSection(AppStateProvider appState) {
     return Container(
-      padding: EdgeInsets.all(24.r),
+      padding: EdgeInsets.all(32.r),
       decoration: BoxDecoration(
-        color: ThemeHelper.getCardBackgroundColor(appState.theme),
-        borderRadius: BorderRadius.circular(20.r),
+        gradient: LinearGradient(
+          colors: [
+            ThemeHelper.getCardBackgroundColor(appState.theme),
+            ThemeHelper.getCardBackgroundColor(appState.theme).withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: ThemeHelper.getTextColor(appState.theme).withOpacity(0.1),
+            color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.15),
+            blurRadius: 20.r,
+            offset: Offset(0, 8.h),
+            spreadRadius: 2.r,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10.r,
-            offset: Offset(0, 4.h),
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
       child: Column(
         children: [
-          Text(
-            'Show this QR code to earn points',
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
-              color: ThemeHelper.getTextColor(appState.theme),
-            ),
+          // Header with icon and text
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      ThemeHelper.getPrimaryColor(appState.theme),
+                      ThemeHelper.getAccentColor(appState.theme),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.qr_code_scanner,
+                  color: ThemeHelper.getButtonTextColor(appState.theme),
+                  size: 20.r,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Text(
+                'Scan to Earn Points',
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  color: ThemeHelper.getTextColor(appState.theme),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 20.h),
+          
+          SizedBox(height: 32.h),
+          
+          // QR Code Container with enhanced styling
           Container(
-            padding: EdgeInsets.all(20.r),
+            padding: EdgeInsets.all(4.r),
             decoration: BoxDecoration(
-              color: ThemeHelper.getSecondaryColor(appState.theme),
-              borderRadius: BorderRadius.circular(16.r),
+              gradient: LinearGradient(
+                colors: [
+                  ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.8),
+                  ThemeHelper.getAccentColor(appState.theme).withOpacity(0.6),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24.r),
+              boxShadow: [
+                BoxShadow(
+                  color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.3),
+                  blurRadius: 15.r,
+                  offset: Offset(0, 6.h),
+                ),
+              ],
             ),
             child: Container(
-              width: 200.r,
-              height: 200.r,
+              padding: EdgeInsets.all(20.r),
               decoration: BoxDecoration(
-                color: ThemeHelper.getCardBackgroundColor(appState.theme),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.qr_code,
-                    size: 120.r,
-                    color: ThemeHelper.getTextColor(appState.theme),
-                  ),
-                  SizedBox(height: 12.h),
-                  Text(
-                    'LYL2023001',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: ThemeHelper.getTextColor(appState.theme),
-                    ),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8.r,
+                    offset: Offset(0, 2.h),
                   ),
                 ],
               ),
+              child: Container(
+                width: 220.r,
+                height: 220.r,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                child: _buildQRCode(appState),
+              ),
             ),
           ),
-          SizedBox(height: 20.h),
-          Text(
-            'Valid for 24 hours',
-            style: TextStyle(
-              fontSize: 14.sp,
-              color: ThemeHelper.getSubtitleTextColor(appState.theme),
+          
+          SizedBox(height: 24.h),
+          
+          // Enhanced info section
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+            decoration: BoxDecoration(
+              color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(
+                color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.2),
+                width: 1.w,
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      color: ThemeHelper.getPrimaryColor(appState.theme),
+                      size: 16.r,
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Valid for current session',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: ThemeHelper.getPrimaryColor(appState.theme),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Present this QR code at checkout to earn loyalty points',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: ThemeHelper.getSubtitleTextColor(appState.theme),
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -349,15 +479,28 @@ class _MembershipPageState extends State<MembershipPage>
 
   Widget _buildTierProgress(AppStateProvider appState) {
     return Container(
-      padding: EdgeInsets.all(24.r),
+      padding: EdgeInsets.all(28.r),
       decoration: BoxDecoration(
-        color: ThemeHelper.getCardBackgroundColor(appState.theme),
-        borderRadius: BorderRadius.circular(20.r),
+        gradient: LinearGradient(
+          colors: [
+            ThemeHelper.getCardBackgroundColor(appState.theme),
+            ThemeHelper.getCardBackgroundColor(appState.theme).withOpacity(0.98),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: ThemeHelper.getTextColor(appState.theme).withOpacity(0.1),
-            blurRadius: 10.r,
-            offset: Offset(0, 4.h),
+            color: ThemeHelper.getPrimaryColor(appState.theme).withOpacity(0.12),
+            blurRadius: 20.r,
+            offset: Offset(0, 8.h),
+            spreadRadius: 1.r,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8.r,
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
@@ -382,7 +525,7 @@ class _MembershipPageState extends State<MembershipPage>
                   borderRadius: BorderRadius.circular(20.r),
                 ),
                 child: Text(
-                  'GOLD',
+                  appState.getCurrentUserRanking()?.title.toUpperCase() ?? 'MEMBER',
                   style: TextStyle(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.bold,
@@ -420,7 +563,9 @@ class _MembershipPageState extends State<MembershipPage>
                 SizedBox(width: 12.w),
                 Expanded(
                   child: Text(
-                    'Earn 550 more points to reach Platinum tier',
+                    appState.getNextRanking() != null 
+                        ? 'Earn ${appState.getPointsToNextRanking()} more points to reach ${appState.getNextRanking()?.title} tier'
+                        : 'You\'ve reached the highest tier!',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: ThemeHelper.getTextColor(appState.theme),
@@ -487,15 +632,28 @@ class _MembershipPageState extends State<MembershipPage>
 
   Widget _buildMemberBenefits(AppStateProvider appState) {
     return Container(
-      padding: EdgeInsets.all(24.r),
+      padding: EdgeInsets.all(28.r),
       decoration: BoxDecoration(
-        color: ThemeHelper.getCardBackgroundColor(appState.theme),
-        borderRadius: BorderRadius.circular(20.r),
+        gradient: LinearGradient(
+          colors: [
+            ThemeHelper.getCardBackgroundColor(appState.theme),
+            ThemeHelper.getCardBackgroundColor(appState.theme).withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: ThemeHelper.getTextColor(appState.theme).withOpacity(0.1),
-            blurRadius: 10.r,
-            offset: Offset(0, 4.h),
+            color: ThemeHelper.getAccentColor(appState.theme).withOpacity(0.15),
+            blurRadius: 20.r,
+            offset: Offset(0, 8.h),
+            spreadRadius: 1.r,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8.r,
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
@@ -503,7 +661,7 @@ class _MembershipPageState extends State<MembershipPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Gold Member Benefits',
+            '${appState.getCurrentUserRanking()?.title ?? 'Member'} Benefits',
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
@@ -579,6 +737,103 @@ class _MembershipPageState extends State<MembershipPage>
           ),
         ],
       ),
+    );
+  }
+
+  // Build the actual QR code widget
+  Widget _buildQRCode(AppStateProvider appState) {
+    final qrData = _generateUserQRData(appState);
+    
+    if (qrData == null) {
+      // Stylish fallback when data not available
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(20.r),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            child: Icon(
+              Icons.qr_code,
+              size: 80.r,
+              color: Colors.grey[400],
+            ),
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'QR Code Unavailable',
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            'Please check your connection',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // QR Code with subtle padding
+        Expanded(
+          child: Container(
+            padding: EdgeInsets.all(12.r),
+            child: QrImageView(
+              data: qrData,
+              version: QrVersions.auto,
+              size: double.infinity,
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.black,
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+              embeddedImage: null,
+              embeddedImageStyle: const QrEmbeddedImageStyle(
+                size: Size(40, 40),
+              ),
+            ),
+          ),
+        ),
+        
+        // Member ID and timestamp in styled container
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Column(
+            children: [
+              Text(
+                _getUserMemberId(appState),
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                  letterSpacing: 1.2,
+                ),
+              ),
+              SizedBox(height: 2.h),
+              Text(
+                'ID: ${_safeSubstring(appState.currentUser?.id ?? 'USER', 0, 8)}',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  color: Colors.grey[600],
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

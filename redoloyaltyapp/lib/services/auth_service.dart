@@ -22,6 +22,10 @@ class AuthService {
   String? _currentToken;
   String? _currentBusinessCode;
   bool _hasUsedApp = false;
+  
+  // Cache for business memberships
+  Map<String, dynamic>? _cachedBusinessMemberships;
+  DateTime? _businessCacheTime;
 
   // Getters
   bool get isAuthenticated => _currentToken != null;
@@ -104,6 +108,9 @@ class AuthService {
         
         // Refresh user data to include new membership
         await _refreshUserData();
+        
+        // Clear any cached business data to force refresh
+        _clearBusinessCache();
         return true;
       } else {
         throw AuthException(response['message'] ?? 'Failed to join business');
@@ -355,15 +362,32 @@ class AuthService {
     }
   }
 
-  // Get user business memberships
-  Future<Map<String, dynamic>?> getUserBusinessMemberships() async {
+  // Clear business cache to force refresh
+  void _clearBusinessCache() {
+    _cachedBusinessMemberships = null;
+    _businessCacheTime = null;
+  }
+
+  // Get user business memberships (with caching)
+  Future<Map<String, dynamic>?> getUserBusinessMemberships({bool forceRefresh = false}) async {
     try {
+      // Check if we have valid cached data (cache for 30 seconds)
+      if (!forceRefresh && 
+          _cachedBusinessMemberships != null && 
+          _businessCacheTime != null &&
+          DateTime.now().difference(_businessCacheTime!).inSeconds < 30) {
+        return _cachedBusinessMemberships;
+      }
+
       final response = await _apiService.get(
         '${ApiConfig.baseUrl}/api/users/business-memberships',
         headers: getAuthHeaders(),
       );
       
       if (response['success'] == true) {
+        // Cache the response
+        _cachedBusinessMemberships = response;
+        _businessCacheTime = DateTime.now();
         return response;
       } else {
         throw AuthException('Failed to get business memberships: ${response['message']}');

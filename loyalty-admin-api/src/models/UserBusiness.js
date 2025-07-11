@@ -28,7 +28,8 @@ const UserBusiness = sequelize.define('UserBusiness', {
   memberId: {
     type: DataTypes.STRING(20),
     allowNull: false,
-    field: 'member_id'
+    field: 'member_id',
+    defaultValue: 'TEMP_ID' // Temporary value that will be replaced by hook
   },
   joinDate: {
     type: DataTypes.DATE,
@@ -84,20 +85,67 @@ const UserBusiness = sequelize.define('UserBusiness', {
     field: 'is_active'
   },
   preferences: {
-    type: DataTypes.JSONB,
+    type: DataTypes.TEXT,
     allowNull: true,
-    defaultValue: {
+    defaultValue: JSON.stringify({
       emailNotifications: true,
       smsNotifications: true,
       birthdayReminders: true,
       promotionalOffers: true
+    }),
+    get() {
+      const rawValue = this.getDataValue('preferences');
+      if (!rawValue) return {
+        emailNotifications: true,
+        smsNotifications: true,
+        birthdayReminders: true,
+        promotionalOffers: true
+      };
+      try {
+        return JSON.parse(rawValue);
+      } catch (e) {
+        return {
+          emailNotifications: true,
+          smsNotifications: true,
+          birthdayReminders: true,
+          promotionalOffers: true
+        };
+      }
+    },
+    set(value) {
+      if (value === null || value === undefined) {
+        this.setDataValue('preferences', JSON.stringify({
+          emailNotifications: true,
+          smsNotifications: true,
+          birthdayReminders: true,
+          promotionalOffers: true
+        }));
+      } else {
+        this.setDataValue('preferences', JSON.stringify(value));
+      }
     }
   },
   qrCodeData: {
-    type: DataTypes.JSONB,
+    type: DataTypes.TEXT,
     allowNull: true,
     field: 'qr_code_data',
-    comment: 'Stores QR code information containing appUserId, businessUserId, businessCode, and joinDate'
+    comment: 'Stores QR code information containing appUserId, businessCode, joinDate, and generatedAt',
+    get() {
+      const rawValue = this.getDataValue('qrCodeData');
+      if (!rawValue) return null;
+      try {
+        return JSON.parse(rawValue);
+      } catch (e) {
+        return null;
+      }
+    },
+    set(value) {
+      if (value === null || value === undefined) {
+        this.setDataValue('qrCodeData', null);
+      } else {
+        this.setDataValue('qrCodeData', JSON.stringify(value));
+      }
+    }
   }
 }, {
   tableName: 'user_businesses',
@@ -133,8 +181,8 @@ const UserBusiness = sequelize.define('UserBusiness', {
     beforeCreate: async (userBusiness) => {
       console.log('UserBusiness beforeCreate hook triggered');
       
-      // Generate random alphanumeric business user ID if not provided
-      if (!userBusiness.memberId) {
+      // Generate random alphanumeric business user ID if not provided or is default
+      if (!userBusiness.memberId || userBusiness.memberId === 'TEMP_ID') {
         try {
           console.log('Generating business user ID for business:', userBusiness.businessId);
           
@@ -199,10 +247,9 @@ const UserBusiness = sequelize.define('UserBusiness', {
         
         const businessCode = businessResult?.business_code || 'UNKNOWN';
         
-        // Create QR code data object
+        // Create QR code data object - simplified to use only appUserId
         userBusiness.qrCodeData = {
           appUserId: userBusiness.userId,
-          businessUserId: userBusiness.memberId,
           businessCode: businessCode,
           joinDate: userBusiness.joinDate || new Date().toISOString(),
           generatedAt: new Date().toISOString()
@@ -214,7 +261,6 @@ const UserBusiness = sequelize.define('UserBusiness', {
         // Set minimal QR code data as fallback
         userBusiness.qrCodeData = {
           appUserId: userBusiness.userId,
-          businessUserId: userBusiness.memberId,
           businessCode: 'UNKNOWN',
           joinDate: new Date().toISOString(),
           generatedAt: new Date().toISOString()

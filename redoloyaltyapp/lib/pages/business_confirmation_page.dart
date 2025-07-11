@@ -80,9 +80,9 @@ class _BusinessConfirmationPageState extends State<BusinessConfirmationPage> {
         await authService.joinBusiness(_businessCode);
         print('DEBUG BusinessConfirmation: Business joined');
         
-        // Navigate to home
+        // Navigate back to user homepage to show all businesses
         Navigator.of(context).pushNamedAndRemoveUntil(
-          '/home',
+          '/user-homepage',
           (route) => false,
         );
         print('DEBUG BusinessConfirmation: Navigated to home');

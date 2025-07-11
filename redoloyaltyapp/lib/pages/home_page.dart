@@ -1128,15 +1128,11 @@ class _HomePageState extends State<HomePage> {
     
     if (user == null || businessCode == null) return null;
     
-    final qrData = {
-      'appUserId': user.id,
-      'businessUserId': 'USR${user.id.substring(0, 4).toUpperCase()}${DateTime.now().millisecondsSinceEpoch.toString().substring(10)}',
-      'businessCode': businessCode,
-      'joinDate': user.memberSince,
-      'generatedAt': DateTime.now().toIso8601String(),
-    };
-    
-    return qrData.toString();
+    // Generate a unique, parseable QR code string
+    // Format: appUserId|businessCode|timestamp
+    // This format is simple to parse and unique per user/business/time
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${user.id}|$businessCode|$timestamp';
   }
 
   void _showQRCodeDialog(AppStateProvider appState) {

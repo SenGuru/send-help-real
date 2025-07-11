@@ -105,4 +105,7 @@ router.put('/profile', [
 // Get user statistics
 router.get('/stats', authenticateUser, userController.getUserStats);
 
+// Get user QR code for specific business
+router.get('/qr-code/:businessId', authenticateUser, userController.getUserQRCode);
+
 module.exports = router;

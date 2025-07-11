@@ -58,7 +58,7 @@ const AllBusinesses: React.FC = () => {
   };
 
   const handleDelete = async (businessId: number) => {
-    if (!confirm('Are you sure you want to delete this business? This action cannot be undone.')) {
+    if (!window.confirm('Are you sure you want to delete this business? This action cannot be undone.')) {
       return;
     }
 

@@ -1,23 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
 const { authenticateSuperAdmin } = require('../middleware/superadminAuth');
-const Business = require('../models/Business');
+const { User, Business, UserBusiness, Transaction, PointsTransaction } = require('../models');
+const { QueryTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
 // Get all users across all businesses (superadmin only)
 router.get('/users', authenticateSuperAdmin, async (req, res) => {
   try {
-    const users = await db.all(`
+    const users = await sequelize.query(`
       SELECT 
         u.*,
         b.name as business_name,
-        b.code as business_code,
+        b.business_code as business_code,
         ub.created_at as joined_business_at
       FROM users u
       LEFT JOIN user_businesses ub ON u.id = ub.user_id
-      LEFT JOIN businesses b ON ub.business_id = b.id
+      LEFT JOIN business b ON ub.business_id = b.id
       ORDER BY u.created_at DESC
-    `);
+    `, { type: QueryTypes.SELECT });
 
     res.json({
       success: true,
@@ -38,15 +39,15 @@ router.get('/users', authenticateSuperAdmin, async (req, res) => {
 // Get all businesses (superadmin only)
 router.get('/businesses', authenticateSuperAdmin, async (req, res) => {
   try {
-    const businesses = await db.all(`
+    const businesses = await sequelize.query(`
       SELECT 
         b.*,
         COUNT(ub.user_id) as user_count
-      FROM businesses b
+      FROM business b
       LEFT JOIN user_businesses ub ON b.id = ub.business_id
       GROUP BY b.id
       ORDER BY b.created_at DESC
-    `);
+    `, { type: QueryTypes.SELECT });
 
     res.json({
       success: true,
@@ -67,18 +68,35 @@ router.get('/businesses', authenticateSuperAdmin, async (req, res) => {
 // Get system stats (superadmin only)
 router.get('/stats', authenticateSuperAdmin, async (req, res) => {
   try {
-    const totalUsers = await db.get('SELECT COUNT(*) as count FROM users');
-    const totalBusinesses = await db.get('SELECT COUNT(*) as count FROM businesses');
-    const totalTransactions = await db.get('SELECT COUNT(*) as count FROM transactions');
-    const totalPoints = await db.get('SELECT SUM(amount) as total FROM points_transactions WHERE type = "earned"');
+    // Use raw queries for now to avoid model issues
+    const [totalUsersResult] = await sequelize.query('SELECT COUNT(*) as count FROM users', { type: QueryTypes.SELECT });
+    const [totalBusinessesResult] = await sequelize.query('SELECT COUNT(*) as count FROM business', { type: QueryTypes.SELECT });
+    const [totalTransactionsResult] = await sequelize.query('SELECT COUNT(*) as count FROM transactions', { type: QueryTypes.SELECT });
+    const [totalPointsResult] = await sequelize.query('SELECT SUM(points) as total FROM points_transactions WHERE type = "earned"', { type: QueryTypes.SELECT });
+    
+    // Users created today
+    const today = new Date().toISOString().split('T')[0];
+    const [usersTodayResult] = await sequelize.query('SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = ?', { 
+      replacements: [today], 
+      type: QueryTypes.SELECT 
+    });
+    
+    // Users created this week
+    const [usersThisWeekResult] = await sequelize.query('SELECT COUNT(*) as count FROM users WHERE created_at >= datetime("now", "-7 days")', { type: QueryTypes.SELECT });
+    
+    // Users created this month
+    const [usersThisMonthResult] = await sequelize.query('SELECT COUNT(*) as count FROM users WHERE created_at >= datetime("now", "-30 days")', { type: QueryTypes.SELECT });
 
     res.json({
       success: true,
       data: {
-        totalUsers: totalUsers.count,
-        totalBusinesses: totalBusinesses.count,
-        totalTransactions: totalTransactions.count,
-        totalPoints: totalPoints.total || 0
+        totalUsers: totalUsersResult.count || 0,
+        totalBusinesses: totalBusinessesResult.count || 0,
+        totalTransactions: totalTransactionsResult.count || 0,
+        totalPoints: totalPointsResult.total || 0,
+        usersToday: usersTodayResult.count || 0,
+        usersThisWeek: usersThisWeekResult.count || 0,
+        usersThisMonth: usersThisMonthResult.count || 0
       }
     });
   } catch (error) {
@@ -266,15 +284,14 @@ router.delete('/businesses/:id', authenticateSuperAdmin, async (req, res) => {
     }
 
     // Check if business has users (you might want to prevent deletion in this case)
-    const userCount = await db.get(
-      'SELECT COUNT(*) as count FROM user_businesses WHERE business_id = ?',
-      [id]
-    );
+    const userCount = await UserBusiness.count({
+      where: { businessId: id }
+    });
 
-    if (userCount && userCount.count > 0) {
+    if (userCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete business with ${userCount.count} active users. Please reassign users first.`
+        message: `Cannot delete business with ${userCount} active users. Please reassign users first.`
       });
     }
 
@@ -307,16 +324,15 @@ router.get('/businesses/:id', authenticateSuperAdmin, async (req, res) => {
     }
 
     // Get user count for this business
-    const userCount = await db.get(
-      'SELECT COUNT(*) as count FROM user_businesses WHERE business_id = ?',
-      [id]
-    );
+    const userCount = await UserBusiness.count({
+      where: { businessId: id }
+    });
 
     res.json({
       success: true,
       data: {
         ...business.toJSON(),
-        userCount: userCount ? userCount.count : 0
+        userCount: userCount
       }
     });
   } catch (error) {
@@ -324,6 +340,142 @@ router.get('/businesses/:id', authenticateSuperAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch business'
+    });
+  }
+});
+
+// Get recent user activities (superadmin only)
+router.get('/recent-activities', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    
+    // Get recent user registrations with business info using raw query
+    const recentUsers = await sequelize.query(`
+      SELECT 
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.created_at,
+        b.name as business_name,
+        b.business_code as business_code
+      FROM users u
+      LEFT JOIN user_businesses ub ON u.id = ub.user_id
+      LEFT JOIN business b ON ub.business_id = b.id
+      ORDER BY u.created_at DESC
+      LIMIT ?
+    `, { 
+      replacements: [parseInt(limit)], 
+      type: QueryTypes.SELECT 
+    });
+    
+    // Get recent business memberships
+    const recentMemberships = await sequelize.query(`
+      SELECT 
+        u.first_name,
+        u.last_name,
+        u.email,
+        b.name as business_name,
+        b.business_code as business_code,
+        ub.created_at as joined_at
+      FROM user_businesses ub
+      JOIN users u ON ub.user_id = u.id
+      JOIN business b ON ub.business_id = b.id
+      ORDER BY ub.created_at DESC
+      LIMIT ?
+    `, { 
+      replacements: [parseInt(limit)], 
+      type: QueryTypes.SELECT 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        recentUsers: recentUsers,
+        recentMemberships: recentMemberships
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching recent activities:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activities'
+    });
+  }
+});
+
+// Get user growth analytics (superadmin only)
+router.get('/user-analytics', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const { Op } = require('sequelize');
+    
+    // Get daily user registrations for the last N days using raw query
+    const dailyRegistrations = await sequelize.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as count
+      FROM users
+      WHERE created_at >= datetime('now', '-${days} days')
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `, { type: QueryTypes.SELECT });
+    
+    // Get user registrations by business
+    const usersByBusiness = await sequelize.query(`
+      SELECT 
+        b.name as business_name,
+        b.business_code,
+        COUNT(ub.user_id) as user_count
+      FROM business b
+      LEFT JOIN user_businesses ub ON b.id = ub.business_id
+      GROUP BY b.id, b.name, b.business_code
+      ORDER BY user_count DESC
+    `, { type: QueryTypes.SELECT });
+    
+    // Get weekly growth comparison
+    const thisWeekStart = new Date();
+    thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    
+    const thisWeekUsers = await User.count({
+      where: {
+        createdAt: {
+          [Op.gte]: thisWeekStart
+        }
+      }
+    });
+    
+    const lastWeekUsers = await User.count({
+      where: {
+        createdAt: {
+          [Op.gte]: lastWeekStart,
+          [Op.lt]: lastWeekEnd
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        dailyRegistrations,
+        usersByBusiness,
+        weeklyGrowth: {
+          thisWeek: thisWeekUsers,
+          lastWeek: lastWeekUsers,
+          percentageChange: lastWeekUsers > 0 
+            ? ((thisWeekUsers - lastWeekUsers) / lastWeekUsers * 100).toFixed(1)
+            : thisWeekUsers > 0 ? '100.0' : '0'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user analytics'
     });
   }
 });

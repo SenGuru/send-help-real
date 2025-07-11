@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getBusinessMembers, removeUserFromBusiness } = require('../controllers/userController');
+const { getBusinessMembers, getUserDetails, updateUserStatus, updateUserDetails, removeUserFromBusiness } = require('../controllers/userController');
 const authMiddleware = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
@@ -22,6 +22,15 @@ const validateRequest = (req, res, next) => {
 
 // Get all members of admin's business (admin only)
 router.get('/', getBusinessMembers);
+
+// Get specific user details (admin only)
+router.get('/:userId', getUserDetails);
+
+// Update user status (admin only)
+router.put('/:userId/status', updateUserStatus);
+
+// Update user details (admin only)
+router.put('/:userId', updateUserDetails);
 
 // Remove user from business (admin only)
 router.delete('/:userId', removeUserFromBusiness);

@@ -444,6 +444,203 @@ const getBusinessMembers = async (req, res) => {
   }
 };
 
+// Admin-only: Get specific user details
+const getUserDetails = async (req, res) => {
+  try {
+    const businessId = req.admin.businessId;
+    const { userId } = req.params;
+
+    const membership = await UserBusiness.findOne({
+      where: { 
+        userId: userId, 
+        businessId: businessId 
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: { exclude: ['password'] }
+        },
+        {
+          model: Ranking,
+          as: 'currentRanking',
+          attributes: ['id', 'title', 'level', 'color']
+        }
+      ]
+    });
+
+    if (!membership) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found in this business'
+      });
+    }
+
+    // Format the response to match the existing admin interface
+    const user = {
+      id: membership.user.id,
+      memberId: membership.memberId,
+      firstName: membership.user.firstName,
+      lastName: membership.user.lastName,
+      email: membership.user.email,
+      phoneNumber: membership.user.phoneNumber,
+      dateOfBirth: membership.user.dateOfBirth,
+      totalPoints: membership.totalPoints,
+      availablePoints: membership.availablePoints,
+      lifetimePoints: membership.lifetimePoints,
+      currentRankingId: membership.currentRankingId,
+      currentRanking: membership.currentRanking,
+      joinDate: membership.joinDate,
+      lastActivity: membership.lastActivity,
+      isActive: membership.isActive,
+      preferences: membership.preferences
+    };
+
+    res.json({
+      success: true,
+      user: user
+    });
+
+  } catch (error) {
+    console.error('Get user details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Admin-only: Update user status
+const updateUserStatus = async (req, res) => {
+  try {
+    const businessId = req.admin.businessId;
+    const { userId } = req.params;
+    const { isActive } = req.body;
+
+    const membership = await UserBusiness.findOne({
+      where: { 
+        userId: userId, 
+        businessId: businessId 
+      },
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['firstName', 'lastName', 'email']
+      }]
+    });
+
+    if (!membership) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found in this business'
+      });
+    }
+
+    // Update the membership status
+    await membership.update({ isActive });
+
+    res.json({
+      success: true,
+      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+      user: {
+        id: membership.userId,
+        memberId: membership.memberId,
+        name: `${membership.user.firstName} ${membership.user.lastName}`,
+        isActive: membership.isActive
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Admin-only: Update user details
+const updateUserDetails = async (req, res) => {
+  try {
+    const businessId = req.admin.businessId;
+    const { userId } = req.params;
+    const { firstName, lastName, email, phoneNumber, isActive } = req.body;
+
+    const membership = await UserBusiness.findOne({
+      where: { 
+        userId: userId, 
+        businessId: businessId 
+      },
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: { exclude: ['password'] }
+      }]
+    });
+
+    if (!membership) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found in this business'
+      });
+    }
+
+    // Update user basic details
+    const userUpdateData = {};
+    if (firstName) userUpdateData.firstName = firstName;
+    if (lastName) userUpdateData.lastName = lastName;
+    if (email) userUpdateData.email = email.toLowerCase();
+    if (phoneNumber) userUpdateData.phoneNumber = phoneNumber;
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await membership.user.update(userUpdateData);
+    }
+
+    // Update membership status if provided
+    if (typeof isActive === 'boolean') {
+      await membership.update({ isActive });
+    }
+
+    // Get updated data
+    await membership.reload({
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: { exclude: ['password'] }
+      }]
+    });
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      user: {
+        id: membership.user.id,
+        memberId: membership.memberId,
+        firstName: membership.user.firstName,
+        lastName: membership.user.lastName,
+        email: membership.user.email,
+        phoneNumber: membership.user.phoneNumber,
+        isActive: membership.isActive
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user details error:', error);
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists for another user'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // Admin-only: Remove user from business
 const removeUserFromBusiness = async (req, res) => {
   try {
@@ -722,5 +919,8 @@ module.exports = {
   getBusinessMemberships,
   // Admin functions
   getBusinessMembers,
+  getUserDetails,
+  updateUserStatus,
+  updateUserDetails,
   removeUserFromBusiness
 };

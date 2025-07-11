@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Mail, Phone, Calendar, Building } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Building, User } from 'lucide-react';
 import axios from 'axios';
 
 interface User {
@@ -27,10 +27,10 @@ const AllUsers: React.FC = () => {
 
   useEffect(() => {
     const filtered = users.filter(user =>
-      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.business_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.business_name && user.business_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredUsers(filtered);
   }, [users, searchTerm]);
@@ -58,315 +58,99 @@ const AllUsers: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '256px' 
-      }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '2px solid #e5e7eb',
-          borderTop: '2px solid #2563eb',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div style={{ 
-        marginBottom: '32px',
-        background: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 'var(--border-radius)',
-        padding: '32px',
-        boxShadow: 'var(--card-shadow)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-      }}>
-        <h1 style={{ 
-          fontSize: '36px', 
-          fontWeight: '800', 
-          background: 'var(--primary-gradient)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          margin: '0 0 8px 0'
-        }}>
-          👥 All Users
-        </h1>
-        <p style={{ 
-          fontSize: '18px', 
-          color: '#6b7280', 
-          margin: 0,
-          fontWeight: '500'
-        }}>
-          Manage and monitor users across all businesses
-        </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">All Users</h1>
+        <p className="text-gray-600">Manage and monitor users across all businesses</p>
       </div>
 
       {/* Search Bar */}
-      <div style={{ 
-        marginBottom: '32px',
-        background: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 'var(--border-radius)',
-        padding: '24px',
-        boxShadow: 'var(--card-shadow)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-      }}>
-        <div style={{ position: 'relative', maxWidth: '500px' }}>
-          <Search style={{ 
-            position: 'absolute', 
-            left: '20px', 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            height: '20px', 
-            width: '20px', 
-            color: '#9ca3af' 
-          }} />
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search users by name, email, or business..."
-            style={{
-              width: '100%',
-              paddingLeft: '52px',
-              paddingRight: '20px',
-              paddingTop: '16px',
-              paddingBottom: '16px',
-              border: '2px solid #e5e7eb',
-              borderRadius: '12px',
-              outline: 'none',
-              fontSize: '16px',
-              background: '#f9fafb',
-              transition: 'var(--transition)'
-            }}
+            placeholder="Search users..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={(e) => {
-              e.target.style.borderColor = '#667eea';
-              e.target.style.background = 'white';
-              e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = '#e5e7eb';
-              e.target.style.background = '#f9fafb';
-              e.target.style.boxShadow = 'none';
-            }}
           />
         </div>
       </div>
 
       {/* Users Grid */}
-      <div style={{ 
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-        gap: '24px',
-        marginBottom: '32px'
-      }}>
-        {filteredUsers.map((user, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredUsers.map((user) => (
           <div
             key={user.id}
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 'var(--border-radius)',
-              padding: '24px',
-              boxShadow: 'var(--card-shadow)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              transition: 'var(--transition)',
-              position: 'relative',
-              overflow: 'hidden',
-              animationDelay: `${index * 0.05}s`
-            }}
-            className="animate-fade-in"
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.transform = 'translateY(-4px)';
-              target.style.boxShadow = 'var(--card-shadow-hover)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.transform = 'translateY(0)';
-              target.style.boxShadow = 'var(--card-shadow)';
-            }}
+            className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200"
           >
-            {/* Background decoration */}
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              right: '-20%',
-              width: '100px',
-              height: '100px',
-              background: 'var(--primary-gradient)',
-              borderRadius: '50%',
-              opacity: 0.05
-            }} />
-            
-            {/* User Avatar and Basic Info */}
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                background: 'var(--primary-gradient)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '16px',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-              }}>
-                <span style={{ 
-                  color: 'white', 
-                  fontWeight: '700', 
-                  fontSize: '18px' 
-                }}>
+            {/* User Header */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-medium text-sm">
                   {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                 </span>
               </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ 
-                  fontSize: '18px', 
-                  fontWeight: '700', 
-                  color: '#1f2937',
-                  margin: '0 0 4px 0'
-                }}>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-gray-900 truncate">
                   {user.first_name} {user.last_name}
                 </h3>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  fontSize: '14px', 
-                  color: '#6b7280' 
-                }}>
-                  <Mail style={{ height: '14px', width: '14px', marginRight: '6px' }} />
-                  {user.email}
+                <div className="flex items-center text-sm text-gray-500">
+                  <Mail className="h-3 w-3 mr-1" />
+                  <span className="truncate">{user.email}</span>
                 </div>
               </div>
             </div>
-            
+
             {/* User Details */}
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '16px'
-            }}>
-              <div style={{
-                padding: '12px',
-                background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-                borderRadius: '8px'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  fontSize: '12px',
-                  color: '#0369a1',
-                  fontWeight: '600',
-                  marginBottom: '4px'
-                }}>
-                  <Phone style={{ height: '12px', width: '12px', marginRight: '4px' }} />
-                  PHONE
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {user.phone_number || 'Not provided'}
-                </div>
+            <div className="space-y-3">
+              {/* Phone */}
+              <div className="flex items-center text-sm text-gray-600">
+                <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                <span>{user.phone_number || 'No phone'}</span>
               </div>
-              
-              <div style={{
-                padding: '12px',
-                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                borderRadius: '8px'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  fontSize: '12px',
-                  color: '#166534',
-                  fontWeight: '600',
-                  marginBottom: '4px'
-                }}>
-                  <Calendar style={{ height: '12px', width: '12px', marginRight: '4px' }} />
-                  JOINED
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {formatDate(user.created_at)}
-                </div>
+
+              {/* Joined Date */}
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                <span>Joined {formatDate(user.created_at)}</span>
               </div>
-            </div>
-            
-            {/* Business Info */}
-            {user.business_name ? (
-              <div style={{
-                padding: '16px',
-                background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)',
-                borderRadius: '12px',
-                marginBottom: '12px'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#92400e'
-                  }}>
-                    <Building style={{ height: '16px', width: '16px', marginRight: '6px' }} />
-                    {user.business_name}
+
+              {/* Business */}
+              {user.business_name ? (
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center text-gray-600">
+                    <Building className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="truncate">{user.business_name}</span>
                   </div>
-                  <span style={{
-                    padding: '4px 8px',
-                    background: 'var(--warning-gradient)',
-                    color: 'white',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '600'
-                  }}>
+                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">
                     {user.business_code}
                   </span>
                 </div>
-                <div style={{ fontSize: '12px', color: '#92400e' }}>
-                  Member since {formatDate(user.joined_business_at)}
+              ) : (
+                <div className="flex items-center text-sm text-gray-500">
+                  <Building className="h-4 w-4 mr-2 text-gray-400" />
+                  <span>No business</span>
                 </div>
-              </div>
-            ) : (
-              <div style={{
-                padding: '16px',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                borderRadius: '12px',
-                marginBottom: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>
-                  🏢 No business associated
+              )}
+
+              {/* Points */}
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Points</span>
+                  <span className="bg-gray-800 text-white px-2 py-1 rounded text-sm font-medium">
+                    {user.points || 0}
+                  </span>
                 </div>
-              </div>
-            )}
-            
-            {/* Points Badge */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center'
-            }}>
-              <div style={{
-                padding: '8px 16px',
-                background: 'var(--secondary-gradient)',
-                borderRadius: '20px',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: '700',
-                boxShadow: '0 4px 12px rgba(240, 147, 251, 0.3)'
-              }}>
-                🏆 {user.points || 0} Points
               </div>
             </div>
           </div>
@@ -375,31 +159,10 @@ const AllUsers: React.FC = () => {
 
       {/* Empty State */}
       {filteredUsers.length === 0 && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: 'var(--border-radius)',
-          padding: '64px 32px',
-          textAlign: 'center',
-          boxShadow: 'var(--card-shadow)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔍</div>
-          <h3 style={{ 
-            fontSize: '24px', 
-            fontWeight: '700', 
-            color: '#1f2937',
-            margin: '0 0 8px 0'
-          }}>
-            No users found
-          </h3>
-          <p style={{ 
-            fontSize: '16px', 
-            color: '#6b7280', 
-            margin: 0 
-          }}>
-            Try adjusting your search criteria
-          </p>
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+          <p className="text-gray-500">Try adjusting your search criteria</p>
         </div>
       )}
     </div>

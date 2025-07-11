@@ -231,3 +231,6 @@ Formatted memberships: [
   }
 ]
 ::ffff:127.0.0.1 - - [11/Jul/2025:02:03:03 +0000] "GET /api/users/business-memberships HTTP/1.1" 200 541 "-" "Dart/3.8 (dart:io)"
+::1 - - [11/Jul/2025:06:13:42 +0000] "GET / HTTP/1.1" 404 27 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+::1 - - [11/Jul/2025:06:13:42 +0000] "GET /favicon.ico HTTP/1.1" 404 27 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+::1 - - [11/Jul/2025:06:13:43 +0000] "GET / HTTP/1.1" 404 27 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"

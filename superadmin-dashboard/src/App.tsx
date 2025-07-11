@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import AllUsers from './pages/AllUsers';
 import AllBusinesses from './pages/AllBusinesses';
+import UserAnalytics from './pages/UserAnalytics';
 import LoginPage from './pages/LoginPage';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,6 +35,13 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AllBusinesses />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserAnalytics />
                 </Layout>
               </ProtectedRoute>
             } />

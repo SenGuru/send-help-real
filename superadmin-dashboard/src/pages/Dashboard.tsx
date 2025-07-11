@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building, CreditCard, Award } from 'lucide-react';
+import { 
+  Users, 
+  Building, 
+  TrendingUp, 
+  Award, 
+  Clock, 
+  UserPlus, 
+  Activity,
+  DollarSign 
+} from 'lucide-react';
 import axios from 'axios';
 import BusinessModal from '../components/BusinessModal';
 
@@ -8,357 +17,263 @@ interface Stats {
   totalBusinesses: number;
   totalTransactions: number;
   totalPoints: number;
+  usersToday: number;
+  usersThisWeek: number;
+  usersThisMonth: number;
+}
+
+interface RecentUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  created_at: string;
+  business_name?: string;
+  business_code?: string;
+}
+
+interface RecentActivity {
+  recentUsers: RecentUser[];
+  recentMemberships: any[];
 }
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
 
   useEffect(() => {
-    fetchStats();
+    fetchData();
+    // Refresh data every 30 seconds for real-time monitoring
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchStats = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/superadmin/stats');
-      if (response.data.success) {
-        setStats(response.data.data);
+      const [statsResponse, activityResponse] = await Promise.all([
+        axios.get('http://localhost:3001/api/superadmin/stats'),
+        axios.get('http://localhost:3001/api/superadmin/recent-activities?limit=5')
+      ]);
+      
+      if (statsResponse.data.success) {
+        setStats(statsResponse.data.data);
+      }
+      
+      if (activityResponse.data.success) {
+        setRecentActivity(activityResponse.data.data);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchStats = fetchData; // Keep for backward compatibility
+
   const statItems = [
     {
       name: 'Total Users',
       value: stats?.totalUsers || 0,
+      change: `+${stats?.usersThisMonth || 0}`,
+      changeType: 'increase' as const,
       icon: Users,
-      color: 'var(--primary-600)',
-      bgColor: 'var(--primary-50)'
+      color: 'bg-blue-500'
+    },
+    {
+      name: 'New Users Today',
+      value: stats?.usersToday || 0,
+      change: `${stats?.usersThisWeek || 0} this week`,
+      changeType: 'neutral' as const,
+      icon: UserPlus,
+      color: 'bg-green-500'
     },
     {
       name: 'Total Businesses',
       value: stats?.totalBusinesses || 0,
+      change: '',
+      changeType: 'neutral' as const,
       icon: Building,
-      color: 'var(--purple-600)',
-      bgColor: 'var(--purple-50)'
-    },
-    {
-      name: 'Total Transactions',
-      value: stats?.totalTransactions || 0,
-      icon: CreditCard,
-      color: 'var(--orange-600)',
-      bgColor: 'var(--orange-50)'
+      color: 'bg-sage-500'
     },
     {
       name: 'Total Points',
       value: stats?.totalPoints || 0,
+      change: '',
+      changeType: 'neutral' as const,
       icon: Award,
-      color: 'var(--green-600)',
-      bgColor: 'var(--green-50)'
+      color: 'bg-purple-500'
     },
   ];
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '256px' 
-      }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '2px solid #e5e7eb',
-          borderTop: '2px solid #2563eb',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-sage-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div style={{ 
-        marginBottom: '24px'
-      }}>
-        <h1 style={{ 
-          fontSize: '28px', 
-          fontWeight: 'bold', 
-          color: 'var(--gray-900)',
-          margin: '0 0 8px 0'
-        }}>
-          Dashboard Overview
-        </h1>
-        <p style={{ 
-          fontSize: '16px', 
-          color: 'var(--gray-600)', 
-          margin: 0
-        }}>
-          Real-time insights across your entire loyalty ecosystem
-        </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Welcome back! Monitor your entire loyalty ecosystem.</p>
       </div>
 
       {/* Stats Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-        gap: '24px',
-        marginBottom: '32px'
-      }}>
-        {statItems.map((item) => (
-          <div
-            key={item.name}
-            style={{
-              backgroundColor: item.bgColor,
-              borderRadius: '8px',
-              padding: '24px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-              border: '1px solid var(--gray-200)',
-              transition: 'all 0.2s ease'
-            }}
-            className="animate-fade-in"
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.transform = 'translateY(-2px)';
-              target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.transform = 'translateY(0)';
-              target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ flexShrink: 0 }}>
-                <div style={{
-                  backgroundColor: item.color,
-                  padding: '12px',
-                  borderRadius: '8px'
-                }}>
-                  <item.icon style={{ height: '24px', width: '24px', color: 'white' }} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statItems.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value.toLocaleString()}</p>
+                  {stat.change && (
+                    <div className="flex items-center mt-2">
+                      <span className={`text-sm font-medium ${
+                        stat.changeType === 'increase' ? 'text-green-600' : 'text-gray-600'
+                      }`}>
+                        {stat.change}
+                      </span>
+                      <span className="text-sm text-gray-500 ml-1">from last month</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{ marginLeft: '16px', flex: 1 }}>
-                <div style={{ 
-                  fontSize: '14px', 
-                  fontWeight: '500', 
-                  color: 'var(--gray-500)', 
-                  margin: '0 0 4px 0'
-                }}>
-                  {item.name}
-                </div>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 'bold', 
-                  color: 'var(--gray-900)'
-                }}>
-                  {item.value.toLocaleString()}
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <Icon className="h-6 w-6 text-white" />
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Bottom Cards */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-        gap: '24px' 
-      }}>
-        {/* Quick Actions Card */}
-        <div style={{ 
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          border: '1px solid var(--gray-200)'
-        }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
-            color: 'var(--gray-900)', 
-            margin: '0 0 16px 0'
-          }}>
-            Quick Actions
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <button style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 16px',
-              backgroundColor: 'var(--primary-50)',
-              border: 'none',
-              borderRadius: '6px',
-              color: 'var(--primary-700)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              textAlign: 'left'
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--primary-100)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--primary-50)';
-            }}>
-              View All Users
+      {/* Recent User Activity */}
+      {recentActivity && recentActivity.recentUsers.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Activity className="h-5 w-5 text-sage-600 mr-2" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Recent User Registrations
+              </h3>
+            </div>
+            <div className="flex items-center px-2 py-1 bg-green-100 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+              <span className="text-xs font-medium text-green-700">
+                Live
+              </span>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {recentActivity.recentUsers.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <div className="flex-shrink-0 w-10 h-10 bg-sage-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">
+                    {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user.first_name} {user.last_name} registered
+                  </p>
+                  <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                  <div className="flex items-center text-xs text-gray-400 mt-1">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {new Date(user.created_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                    {user.business_name && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <span className="text-sage-600 font-medium">
+                          {user.business_code}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Charts and Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="space-y-3">
+            <button className="w-full flex items-center justify-between p-3 text-left bg-sage-50 hover:bg-sage-100 rounded-lg transition-colors">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-sage-600 mr-3" />
+                <span className="text-sm font-medium text-gray-900">View All Users</span>
+              </div>
+              <span className="text-sage-600">→</span>
             </button>
-            <button style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 16px',
-              backgroundColor: 'var(--purple-50)',
-              border: 'none',
-              borderRadius: '6px',
-              color: 'var(--purple-700)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              textAlign: 'left'
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--purple-100)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--purple-50)';
-            }}>
-              View All Businesses
+            <button className="w-full flex items-center justify-between p-3 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+              <div className="flex items-center">
+                <Building className="h-5 w-5 text-blue-600 mr-3" />
+                <span className="text-sm font-medium text-gray-900">View All Businesses</span>
+              </div>
+              <span className="text-blue-600">→</span>
             </button>
-            <button style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 16px',
-              backgroundColor: 'var(--orange-50)',
-              border: 'none',
-              borderRadius: '6px',
-              color: 'var(--orange-700)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              textAlign: 'left'
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--orange-100)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--orange-50)';
-            }}>
-              System Analytics
+            <button 
+              onClick={() => window.location.href = '/analytics'}
+              className="w-full flex items-center justify-between p-3 text-left bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+            >
+              <div className="flex items-center">
+                <TrendingUp className="h-5 w-5 text-purple-600 mr-3" />
+                <span className="text-sm font-medium text-gray-900">User Analytics</span>
+              </div>
+              <span className="text-purple-600">→</span>
             </button>
-            <button style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 16px',
-              backgroundColor: 'var(--green-50)',
-              border: 'none',
-              borderRadius: '6px',
-              color: 'var(--green-700)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease',
-              textAlign: 'left'
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--green-100)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--green-50)';
-            }}
-            onClick={() => setShowCreateBusinessModal(true)}>
-              Create New Business
+            <button 
+              onClick={() => setShowCreateBusinessModal(true)}
+              className="w-full flex items-center justify-between p-3 text-left bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+            >
+              <div className="flex items-center">
+                <Building className="h-5 w-5 text-green-600 mr-3" />
+                <span className="text-sm font-medium text-gray-900">Create New Business</span>
+              </div>
+              <span className="text-green-600">→</span>
             </button>
           </div>
         </div>
 
-        {/* System Health Card */}
-        <div style={{ 
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          border: '1px solid var(--gray-200)'
-        }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
-            color: 'var(--gray-900)', 
-            margin: '0 0 16px 0'
-          }}>
-            System Health
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between'
-            }}>
-              <span style={{ fontSize: '14px', color: 'var(--gray-600)' }}>API Status</span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '500',
-                backgroundColor: 'var(--green-100)',
-                color: 'var(--green-800)'
-              }}>
+        {/* System Health */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Health</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">API Status</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 Healthy
               </span>
             </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between'
-            }}>
-              <span style={{ fontSize: '14px', color: 'var(--gray-600)' }}>Database</span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '500',
-                backgroundColor: 'var(--green-100)',
-                color: 'var(--green-800)'
-              }}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Database</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 Connected
               </span>
             </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between'
-            }}>
-              <span style={{ fontSize: '14px', color: 'var(--gray-600)' }}>Last Backup</span>
-              <span style={{ fontSize: '14px', color: 'var(--gray-900)' }}>2 hours ago</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Last Backup</span>
+              <span className="text-sm text-gray-900">2 hours ago</span>
             </div>
           </div>
         </div>

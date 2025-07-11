@@ -1,199 +1,135 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  BarChart3,
+  Menu,
+  X,
+  LogOut,
+  User,
+  Shield
+} from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'All Users', href: '/users', icon: Users },
+  { name: 'All Businesses', href: '/businesses', icon: Building2 },
+  { name: 'User Analytics', href: '/analytics', icon: BarChart3 },
+];
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
 
-  const navigation = [
-    { name: 'Dashboard', href: '/' },
-    { name: 'All Users', href: '/users' },
-    { name: 'All Businesses', href: '/businesses' },
-  ];
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--gray-100)' }}>
+    <div className="flex h-screen bg-gray-100">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div style={{ 
-        width: '256px', 
-        backgroundColor: 'white', 
-        borderRight: '1px solid var(--gray-200)',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        {/* Header */}
-        <div style={{ 
-          padding: '24px',
-          borderBottom: '1px solid var(--gray-200)'
-        }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '20px', 
-            fontWeight: 'bold',
-            color: 'var(--gray-900)'
-          }}>
-            SuperAdmin
-          </h1>
-          <p style={{ 
-            margin: '4px 0 0 0', 
-            fontSize: '14px', 
-            color: 'var(--gray-600)'
-          }}>
-            Global Dashboard
-          </p>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 w-8 h-8 bg-sage-500 rounded-lg flex items-center justify-center">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <span className="ml-3 text-lg font-semibold text-gray-900">SuperAdmin</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-gray-500 hover:text-gray-600"
+          >
+            <X className="h-6 w-6" />
+          </button>
         </div>
-        
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: '16px 0' }}>
+
+        <nav className="mt-8 px-4 space-y-2">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
+            const Icon = item.icon;
+            
             return (
-              <div 
+              <NavLink
                 key={item.name}
-                style={{
-                  position: 'relative',
-                  backgroundColor: isActive ? 'var(--primary-100)' : 'transparent'
-                }}
+                to={item.href}
+                className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-sage-100 text-sage-900 border-r-2 border-sage-500'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                onClick={() => setSidebarOpen(false)}
               >
-                <Link
-                  to={item.href}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px 24px',
-                    textDecoration: 'none',
-                    color: isActive ? 'var(--primary-900)' : 'var(--gray-700)',
-                    fontWeight: isActive ? '600' : '500',
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      const target = e.target as HTMLElement;
-                      const parent = target.parentElement as HTMLElement;
-                      parent.style.backgroundColor = 'var(--gray-100)';
-                      target.style.color = 'var(--gray-900)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      const target = e.target as HTMLElement;
-                      const parent = target.parentElement as HTMLElement;
-                      parent.style.backgroundColor = 'transparent';
-                      target.style.color = 'var(--gray-700)';
-                    }
-                  }}
-                >
-                  {item.name}
-                </Link>
-                {isActive && (
-                  <div style={{
-                    position: 'absolute',
-                    right: '0',
-                    top: '0',
-                    bottom: '0',
-                    width: '2px',
-                    backgroundColor: 'var(--primary-500)'
-                  }} />
-                )}
-              </div>
+                <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-sage-600' : 'text-gray-400'}`} />
+                {item.name}
+              </NavLink>
             );
           })}
         </nav>
 
-        {/* User Profile */}
-        <div style={{ 
-          padding: '24px',
-          borderTop: '1px solid var(--gray-200)',
-          backgroundColor: 'var(--gray-50)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: 'var(--primary-600)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: '12px'
-            }}>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: 'bold',
-                color: 'white'
-              }}>
-                {user?.name?.charAt(0) || 'S'}
-              </span>
+        {/* User info and logout at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+          <div className="flex items-center mb-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-gray-600" />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ 
-                fontWeight: '600', 
-                fontSize: '14px',
-                color: 'var(--gray-900)',
-                marginBottom: '2px'
-              }}>
-                {user?.name || 'Super Admin'}
-              </div>
-              <div style={{ 
-                fontSize: '12px', 
-                color: 'var(--gray-600)'
-              }}>
-                {user?.role || 'superadmin'}
-              </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-900">{user?.name || 'Super Admin'}</p>
+              <p className="text-xs text-gray-500">{user?.role || 'superadmin'}</p>
             </div>
           </div>
-          
           <button
-            onClick={logout}
-            style={{
-              width: '100%',
-              padding: '8px 16px',
-              backgroundColor: 'var(--gray-100)',
-              border: '1px solid var(--gray-200)',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              color: 'var(--gray-700)',
-              fontWeight: '500',
-              fontSize: '14px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--gray-200)';
-              target.style.color = 'var(--gray-900)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.backgroundColor = 'var(--gray-100)';
-              target.style.color = 'var(--gray-700)';
-            }}
+            onClick={handleLogout}
+            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            Sign out
+            <LogOut className="mr-3 h-4 w-4" />
+            Logout
           </button>
         </div>
       </div>
 
       {/* Main content */}
-      <div style={{ 
-        flex: 1, 
-        padding: '24px',
-        backgroundColor: 'var(--gray-100)',
-        overflow: 'auto'
-      }}>
-        <div className="animate-fade-in">
-          {children}
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar */}
+        <header className="bg-white shadow-sm border-b border-gray-200 lg:hidden">
+          <div className="flex items-center justify-between h-16 px-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-500 hover:text-gray-600"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {navigation.find(item => item.href === location.pathname)?.name || 'SuperAdmin'}
+            </h1>
+            <div></div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="animate-fade-in">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -1,30 +1,78 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateSuperAdmin } = require('../middleware/superadminAuth');
-const { User, Business, UserBusiness, Transaction, PointsTransaction } = require('../models');
+const { User, Business, UserBusiness, Transaction, PointsTransaction, Admin } = require('../models');
 const { QueryTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 // Get all users across all businesses (superadmin only)
 router.get('/users', authenticateSuperAdmin, async (req, res) => {
   try {
+    // Get all unique users
     const users = await sequelize.query(`
       SELECT 
-        u.*,
-        b.name as business_name,
-        b.business_code as business_code,
-        ub.created_at as joined_business_at
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone_number,
+        u.date_of_birth,
+        u.profile_image_url,
+        u.is_active,
+        u.last_login,
+        u.created_at,
+        u.updated_at
       FROM users u
-      LEFT JOIN user_businesses ub ON u.id = ub.user_id
-      LEFT JOIN business b ON ub.business_id = b.id
       ORDER BY u.created_at DESC
     `, { type: QueryTypes.SELECT });
+
+    // Get all business memberships for these users
+    const memberships = await sequelize.query(`
+      SELECT 
+        ub.user_id,
+        ub.member_id,
+        ub.join_date,
+        ub.total_points,
+        ub.available_points,
+        ub.lifetime_points,
+        ub.last_activity,
+        ub.is_active as membership_active,
+        b.id as business_id,
+        b.name as business_name,
+        b.business_code,
+        r.title as current_ranking,
+        r.color as ranking_color
+      FROM user_businesses ub
+      JOIN business b ON ub.business_id = b.id
+      LEFT JOIN rankings r ON ub.current_ranking_id = r.id
+      ORDER BY ub.created_at DESC
+    `, { type: QueryTypes.SELECT });
+
+    // Group memberships by user
+    const membershipsByUser = memberships.reduce((acc, membership) => {
+      if (!acc[membership.user_id]) {
+        acc[membership.user_id] = [];
+      }
+      acc[membership.user_id].push(membership);
+      return acc;
+    }, {});
+
+    // Combine users with their business memberships
+    const usersWithMemberships = users.map(user => ({
+      ...user,
+      memberships: membershipsByUser[user.id] || [],
+      totalBusinesses: (membershipsByUser[user.id] || []).length,
+      totalPoints: (membershipsByUser[user.id] || []).reduce((sum, m) => sum + (m.total_points || 0), 0),
+      totalAvailablePoints: (membershipsByUser[user.id] || []).reduce((sum, m) => sum + (m.available_points || 0), 0)
+    }));
 
     res.json({
       success: true,
       data: {
-        users: users,
-        total: users.length
+        users: usersWithMemberships,
+        total: users.length,
+        totalMemberships: memberships.length
       }
     });
   } catch (error) {
@@ -110,6 +158,8 @@ router.get('/stats', authenticateSuperAdmin, async (req, res) => {
 
 // Create a new business (superadmin only)
 router.post('/businesses', authenticateSuperAdmin, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const {
       name,
@@ -124,14 +174,44 @@ router.post('/businesses', authenticateSuperAdmin, async (req, res) => {
       established,
       features,
       socialMedia,
-      loyaltyBenefits
+      loyaltyBenefits,
+      // Admin credentials
+      adminFirstName,
+      adminLastName,
+      adminEmail,
+      adminPassword
     } = req.body;
 
-    // Validate required fields
+    // Validate required business fields
     if (!name || !businessCode) {
       return res.status(400).json({
         success: false,
         message: 'Business name and code are required'
+      });
+    }
+
+    // Validate required admin fields
+    if (!adminFirstName || !adminLastName || !adminEmail || !adminPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin first name, last name, email, and password are required'
+      });
+    }
+
+    // Validate admin password length
+    if (adminPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin password must be at least 6 characters long'
+      });
+    }
+
+    // Validate admin email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid admin email address'
       });
     }
 
@@ -144,7 +224,16 @@ router.post('/businesses', authenticateSuperAdmin, async (req, res) => {
       });
     }
 
-    // Create new business
+    // Check if admin email already exists
+    const existingAdmin = await Admin.findOne({ where: { email: adminEmail } });
+    if (existingAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin email already exists'
+      });
+    }
+
+    // Create new business within transaction
     const business = await Business.create({
       name,
       businessCode: businessCode.toUpperCase(),
@@ -164,15 +253,40 @@ router.post('/businesses', authenticateSuperAdmin, async (req, res) => {
         twitter: ''
       },
       loyaltyBenefits: loyaltyBenefits || []
-    });
+    }, { transaction });
+
+    // Create admin account for the business within transaction
+    const admin = await Admin.create({
+      businessId: business.id,
+      email: adminEmail,
+      password: adminPassword,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      isActive: true
+    }, { transaction });
+
+    // Commit the transaction
+    await transaction.commit();
 
     res.status(201).json({
       success: true,
-      message: 'Business created successfully',
-      data: business
+      message: 'Business and admin account created successfully',
+      data: {
+        business,
+        admin: {
+          id: admin.id,
+          email: admin.email,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          isActive: admin.isActive
+        }
+      }
     });
   } catch (error) {
-    console.error('Error creating business:', error);
+    // Rollback the transaction in case of error
+    await transaction.rollback();
+    
+    console.error('Error creating business and admin:', error);
     
     if (error.name === 'SequelizeValidationError') {
       return res.status(400).json({
@@ -182,9 +296,17 @@ router.post('/businesses', authenticateSuperAdmin, async (req, res) => {
       });
     }
 
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate entry error',
+        details: error.errors.map(e => e.message)
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Failed to create business'
+      message: 'Failed to create business and admin account'
     });
   }
 });

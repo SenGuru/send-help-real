@@ -14,7 +14,7 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    @apply bg-gray-100 min-h-screen leading-relaxed;
+    @apply bg-neutral-background min-h-screen leading-relaxed;
   }
 
   code {

@@ -2,6 +2,7 @@ const sequelize = require('../config/database');
 
 // Import all models
 const Business = require('./Business');
+const Admin = require('./Admin');
 const Ranking = require('./Ranking');
 const Coupon = require('./Coupon');
 const Theme = require('./Theme');
@@ -18,6 +19,7 @@ const MenuItemPurchase = require('./MenuItemPurchase');
 // Define associations
 
 // Business associations
+Business.hasMany(Admin, { foreignKey: 'businessId', as: 'admins' });
 Business.hasMany(Ranking, { foreignKey: 'businessId', as: 'rankings' });
 Business.hasMany(Coupon, { foreignKey: 'businessId', as: 'coupons' });
 Business.hasMany(Theme, { foreignKey: 'businessId', as: 'themes' });
@@ -29,6 +31,9 @@ Business.hasMany(UserPointTier, { foreignKey: 'businessId', as: 'userPointTiers'
 Business.hasMany(MenuItem, { foreignKey: 'businessId', as: 'menuItems' });
 Business.hasMany(MenuItemPurchase, { foreignKey: 'businessId', as: 'menuPurchases' });
 Business.hasMany(UserBusiness, { foreignKey: 'businessId', as: 'members' });
+
+// Admin associations
+Admin.belongsTo(Business, { foreignKey: 'businessId', as: 'business' });
 
 // User and Business many-to-many relationship through UserBusiness
 User.belongsToMany(Business, { 
@@ -86,6 +91,7 @@ Reward.belongsTo(Business, { foreignKey: 'businessId', as: 'business' });
 module.exports = {
   sequelize,
   Business,
+  Admin,
   Ranking,
   Coupon,
   Theme,

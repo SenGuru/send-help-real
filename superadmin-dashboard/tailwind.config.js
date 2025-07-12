@@ -6,29 +6,51 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        sage: {
-          50: '#f6f8f4',
-          100: '#e9ede4',
-          200: '#d5dccb',
-          300: '#b8c5a7',
-          400: '#9caf88',
-          500: '#7a8b6b',
-          600: '#627156',
-          700: '#4f5a47',
-          800: '#41493c',
-          900: '#383f34',
+        // Flutter Neutral Color Palette
+        primary: {
+          50: '#F7FAFC',
+          100: '#EDF2F7',
+          200: '#E2E8F0',
+          300: '#CBD5E0',
+          400: '#A0AEC0',
+          500: '#718096',
+          600: '#4A5568',
+          700: '#2D3748',
+          800: '#1A202C',
+          900: '#171923',
+          DEFAULT: '#2D3748', // Dark Slate Gray
         },
-        beige: {
-          50: '#fafaf0',
-          100: '#f5f5dc',
-          200: '#f0f0c8',
-          300: '#e8e8b8',
-          400: '#e0e0a8',
-          500: '#d8d898',
-          600: '#c8c888',
-          700: '#b8b878',
-          800: '#a8a868',
-          900: '#989858',
+        secondary: {
+          DEFAULT: '#4A5568', // Medium Gray
+          light: '#718096',
+          dark: '#2D3748',
+        },
+        accent: {
+          50: '#EBF8FF',
+          100: '#BEE3F8',
+          200: '#90CDF4',
+          300: '#63B3ED',
+          400: '#4299E1',
+          500: '#3182CE',
+          600: '#2B6CB0',
+          700: '#2C5282',
+          800: '#2A4365',
+          900: '#1A365D',
+          DEFAULT: '#3182CE', // Professional Blue
+        },
+        neutral: {
+          background: '#F7FAFC',
+          card: '#FFFFFF',
+          surface: '#F1F5F9',
+          border: '#E2E8F0',
+          'border-light': '#F1F5F9',
+          divider: '#E5E7EB',
+        },
+        text: {
+          primary: '#1A202C',
+          secondary: '#718096',
+          light: '#9CA3AF',
+          'on-primary': '#FFFFFF',
         }
       }
     },

@@ -34,29 +34,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-neutral-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-primary-800 bg-opacity-75 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-neutral-card shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-neutral-border">
           <div className="flex items-center">
-            <div className="flex-shrink-0 w-8 h-8 bg-sage-500 rounded-lg flex items-center justify-center">
-              <Shield className="h-4 w-4 text-white" />
+            <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Shield className="h-4 w-4 text-text-on-primary" />
             </div>
-            <span className="ml-3 text-lg font-semibold text-gray-900">SuperAdmin</span>
+            <span className="ml-3 text-lg font-semibold text-text-primary">SuperAdmin</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-600"
+            className="lg:hidden text-text-secondary hover:text-text-primary"
           >
             <X className="h-6 w-6" />
           </button>
@@ -73,12 +73,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 to={item.href}
                 className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-sage-100 text-sage-900 border-r-2 border-sage-500'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-accent-50 text-accent-700 border-r-2 border-accent'
+                    : 'text-text-secondary hover:bg-neutral-surface hover:text-text-primary'
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-sage-600' : 'text-gray-400'}`} />
+                <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-accent' : 'text-text-light'}`} />
                 {item.name}
               </NavLink>
             );
@@ -86,19 +86,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {/* User info and logout at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-neutral-border bg-neutral-card">
           <div className="flex items-center mb-3">
-            <div className="flex-shrink-0 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-600" />
+            <div className="flex-shrink-0 w-8 h-8 bg-primary-300 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-primary-700" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-900">{user?.name || 'Super Admin'}</p>
-              <p className="text-xs text-gray-500">{user?.role || 'superadmin'}</p>
+              <p className="text-sm font-medium text-text-primary">{user?.name || 'Super Admin'}</p>
+              <p className="text-xs text-text-secondary">{user?.role || 'superadmin'}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center w-full px-3 py-2 text-sm text-text-secondary hover:bg-neutral-surface hover:text-text-primary rounded-lg transition-colors"
           >
             <LogOut className="mr-3 h-4 w-4" />
             Logout
@@ -109,15 +109,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200 lg:hidden">
+        <header className="bg-neutral-card shadow-sm border-b border-neutral-border lg:hidden">
           <div className="flex items-center justify-between h-16 px-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="text-gray-500 hover:text-gray-600"
+              className="text-text-secondary hover:text-text-primary"
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">
+            <h1 className="text-lg font-semibold text-text-primary">
               {navigation.find(item => item.href === location.pathname)?.name || 'SuperAdmin'}
             </h1>
             <div></div>

@@ -27,7 +27,13 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
       facebook: '',
       twitter: ''
     },
-    loyaltyBenefits: [] as string[]
+    loyaltyBenefits: [] as string[],
+    // Admin credentials
+    adminFirstName: '',
+    adminLastName: '',
+    adminEmail: '',
+    adminPassword: '',
+    adminConfirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,11 +41,18 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
   const [generatingCode, setGeneratingCode] = useState(false);
   const [codeError, setCodeError] = useState('');
 
-  const steps = [
-    { id: 1, title: 'Basic Info', icon: Building },
-    { id: 2, title: 'Contact Details', icon: Mail },
-    { id: 3, title: 'Additional Info', icon: Globe }
-  ];
+  const steps = business 
+    ? [
+        { id: 1, title: 'Basic Info', icon: Building },
+        { id: 2, title: 'Contact Details', icon: Mail },
+        { id: 3, title: 'Additional Info', icon: Globe }
+      ]
+    : [
+        { id: 1, title: 'Basic Info', icon: Building },
+        { id: 2, title: 'Contact Details', icon: Mail },
+        { id: 3, title: 'Admin Account', icon: User },
+        { id: 4, title: 'Additional Info', icon: Globe }
+      ];
 
   useEffect(() => {
     if (business) {
@@ -59,7 +72,13 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
           facebook: '',
           twitter: ''
         },
-        loyaltyBenefits: business.loyaltyBenefits || []
+        loyaltyBenefits: business.loyaltyBenefits || [],
+        // Don't show admin fields for editing existing business
+        adminFirstName: '',
+        adminLastName: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminConfirmPassword: ''
       });
     } else {
       // Reset form for new business
@@ -79,7 +98,13 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
           facebook: '',
           twitter: ''
         },
-        loyaltyBenefits: []
+        loyaltyBenefits: [],
+        // Admin credentials for new business
+        adminFirstName: '',
+        adminLastName: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminConfirmPassword: ''
       });
     }
     setCurrentStep(1);
@@ -114,6 +139,33 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
     // Validate website format if provided
     if (formData.website && !/^https?:\/\/.+\..+/.test(formData.website)) {
       errors.push('Please enter a valid website URL (include http:// or https://)');
+    }
+
+    // Validate admin credentials for new business
+    if (!business) {
+      if (!formData.adminFirstName.trim()) {
+        errors.push('Admin first name is required');
+      }
+      
+      if (!formData.adminLastName.trim()) {
+        errors.push('Admin last name is required');
+      }
+      
+      if (!formData.adminEmail.trim()) {
+        errors.push('Admin email is required');
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.adminEmail)) {
+        errors.push('Please enter a valid admin email address');
+      }
+      
+      if (!formData.adminPassword.trim()) {
+        errors.push('Admin password is required');
+      } else if (formData.adminPassword.length < 6) {
+        errors.push('Admin password must be at least 6 characters');
+      }
+      
+      if (formData.adminPassword !== formData.adminConfirmPassword) {
+        errors.push('Admin passwords do not match');
+      }
     }
 
     if (errors.length > 0) {
@@ -317,7 +369,20 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
       case 2:
         return true; // Contact details are optional
       case 3:
-        return true; // Additional info is optional
+        if (business) {
+          // For editing: step 3 is Additional Info
+          return true; // Additional info is optional
+        } else {
+          // For new business: step 3 is Admin Account
+          return formData.adminFirstName.trim() && 
+                 formData.adminLastName.trim() && 
+                 formData.adminEmail.trim() && 
+                 formData.adminPassword.trim() && 
+                 formData.adminPassword === formData.adminConfirmPassword &&
+                 formData.adminPassword.length >= 6;
+        }
+      case 4:
+        return true; // Additional info is optional (only for new business)
       default:
         return false;
     }
@@ -327,9 +392,9 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
@@ -349,7 +414,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
         </div>
 
         {/* Progress Steps */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
               const StepIcon = step.icon;
@@ -360,8 +425,8 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                 <React.Fragment key={step.id}>
                   <div className="flex items-center">
                     <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
-                      isCompleted ? 'bg-green-600 text-white' : 
-                      isActive ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-500'
+                      isCompleted ? 'bg-accent text-text-on-primary' : 
+                      isActive ? 'bg-primary text-text-on-primary' : 'bg-primary-200 text-text-secondary'
                     }`}>
                       {isCompleted ? (
                         <Check className="h-5 w-5" />
@@ -371,12 +436,12 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                     </div>
                     <div className="ml-3">
                       <p className={`text-sm font-medium ${
-                        isActive ? 'text-gray-900' : 'text-gray-500'
+                        isActive ? 'text-text-primary' : 'text-text-secondary'
                       }`}>
                         Step {step.id}
                       </p>
                       <p className={`text-xs ${
-                        isActive ? 'text-gray-600' : 'text-gray-400'
+                        isActive ? 'text-text-secondary' : 'text-text-light'
                       }`}>
                         {step.title}
                       </p>
@@ -384,7 +449,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                   </div>
                   {index < steps.length - 1 && (
                     <div className={`flex-1 h-px mx-4 ${
-                      currentStep > step.id ? 'bg-green-600' : 'bg-gray-200'
+                      currentStep > step.id ? 'bg-accent' : 'bg-neutral-border'
                     }`} />
                   )}
                 </React.Fragment>
@@ -393,7 +458,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto p-6">
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -424,7 +489,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Business Name *
                       </label>
                       <input
@@ -433,13 +498,13 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                         value={formData.name}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent outline-none transition-all"
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                         placeholder="Enter business name"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Business Code *
                       </label>
                       <div className="relative">
@@ -498,14 +563,14 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Category
                       </label>
                       <select
                         name="category"
                         value={formData.category}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent outline-none transition-all"
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                       >
                         <option value="">Select category</option>
                         <option value="Restaurant">Restaurant</option>
@@ -519,7 +584,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Established
                       </label>
                       <div className="relative">
@@ -550,7 +615,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Contact Email
                       </label>
                       <div className="relative">
@@ -567,7 +632,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-text-primary mb-2">
                         Contact Phone
                       </label>
                       <div className="relative">
@@ -621,8 +686,150 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
               </div>
             )}
 
-            {/* Step 3: Additional Info */}
-            {currentStep === 3 && (
+            {/* Step 3: Admin Account (only for new business) */}
+            {currentStep === 3 && !business && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <User className="h-5 w-5 mr-2 text-gray-600" />
+                    Business Admin Account
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Create an admin account for this business. This person will be able to log into the business admin dashboard 
+                    to manage customers, loyalty programs, and business settings.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="adminFirstName"
+                        value={formData.adminFirstName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                        placeholder="Enter first name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="adminLastName"
+                        value={formData.adminLastName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                        placeholder="Enter last name"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Admin Email *
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="email"
+                        name="adminEmail"
+                        value={formData.adminEmail}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent outline-none transition-all"
+                        placeholder="admin@business.com"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This email will be used to log into the business admin dashboard
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Password *
+                      </label>
+                      <input
+                        type="password"
+                        name="adminPassword"
+                        value={formData.adminPassword}
+                        onChange={handleInputChange}
+                        required
+                        minLength={6}
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                        placeholder="Minimum 6 characters"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Confirm Password *
+                      </label>
+                      <input
+                        type="password"
+                        name="adminConfirmPassword"
+                        value={formData.adminConfirmPassword}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                        placeholder="Confirm password"
+                      />
+                    </div>
+                  </div>
+
+                  {formData.adminPassword && formData.adminConfirmPassword && (
+                    <div className={`p-3 rounded-lg ${
+                      formData.adminPassword === formData.adminConfirmPassword 
+                        ? 'bg-green-50 border border-green-200' 
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <p className={`text-sm flex items-center ${
+                        formData.adminPassword === formData.adminConfirmPassword 
+                          ? 'text-green-700' 
+                          : 'text-red-700'
+                      }`}>
+                        {formData.adminPassword === formData.adminConfirmPassword ? (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Passwords match
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Passwords do not match
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <User className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-900 mb-1">Admin Dashboard Access</h4>
+                        <p className="text-sm text-blue-700">
+                          Once created, this admin will be able to access the business dashboard at{' '}
+                          <span className="font-mono bg-blue-100 px-1 rounded">loyalty-admin-web</span> to manage 
+                          customers, create coupons, set up loyalty tiers, and customize the business theme.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Info Step */}
+            {((business && currentStep === 3) || (!business && currentStep === 4)) && (
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -689,14 +896,14 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 {currentStep > 1 && (
                   <button
                     type="button"
                     onClick={prevStep}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center px-4 py-2 text-sm font-medium text-text-secondary bg-neutral-card border border-neutral-border rounded-lg hover:bg-neutral-surface transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Previous
@@ -708,7 +915,7 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-text-secondary bg-neutral-card border border-neutral-border rounded-lg hover:bg-neutral-surface transition-colors"
                 >
                   Cancel
                 </button>
@@ -720,8 +927,8 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                     disabled={!canProceedToNextStep()}
                     className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       canProceedToNextStep()
-                        ? 'text-white bg-gray-800 hover:bg-gray-900'
-                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                        ? 'text-text-on-primary bg-primary hover:bg-primary-600'
+                        : 'text-text-light bg-primary-200 cursor-not-allowed'
                     }`}
                   >
                     Next
@@ -733,8 +940,8 @@ const BusinessModal: React.FC<BusinessModalProps> = ({ isOpen, onClose, business
                     disabled={loading}
                     className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
                       loading
-                        ? 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                        : 'text-white bg-gray-800 hover:bg-gray-900'
+                        ? 'text-text-light bg-primary-200 cursor-not-allowed'
+                        : 'text-text-on-primary bg-primary hover:bg-primary-600'
                     }`}
                   >
                     {loading ? 'Saving...' : business ? 'Update Business' : 'Create Business'}

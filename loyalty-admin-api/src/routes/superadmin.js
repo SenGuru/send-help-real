@@ -602,4 +602,143 @@ router.get('/user-analytics', authenticateSuperAdmin, async (req, res) => {
   }
 });
 
+// Import admin accounts from CSV (superadmin only)
+router.post('/admin-csv-import', authenticateSuperAdmin, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { admins } = req.body;
+    
+    if (!admins || !Array.isArray(admins)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid admin data provided'
+      });
+    }
+
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (let i = 0; i < admins.length; i++) {
+      const adminData = admins[i];
+      
+      try {
+        // Find business by handle (without @)
+        const businessHandle = adminData.business_handle.replace('@', '');
+        const business = await Business.findOne({ 
+          where: { businessCode: businessHandle.toUpperCase() } 
+        });
+        
+        if (!business) {
+          results.failed++;
+          results.errors.push(`Row ${i + 1}: Business with handle ${adminData.business_handle} not found`);
+          continue;
+        }
+
+        // Check if admin email already exists
+        const existingAdmin = await Admin.findOne({ 
+          where: { email: adminData.admin_email } 
+        });
+        
+        if (existingAdmin) {
+          results.failed++;
+          results.errors.push(`Row ${i + 1}: Admin email ${adminData.admin_email} already exists`);
+          continue;
+        }
+
+        // Create admin account
+        await Admin.create({
+          businessId: business.id,
+          email: adminData.admin_email,
+          password: adminData.admin_password, // Will be hashed by model hook
+          firstName: adminData.admin_first_name,
+          lastName: adminData.admin_last_name,
+          isActive: adminData.is_active === true || adminData.is_active === 'true'
+        }, { transaction });
+
+        results.successful++;
+        
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Row ${i + 1}: ${error.message}`);
+      }
+    }
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: `Import completed: ${results.successful} successful, ${results.failed} failed`,
+      data: results
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error importing admin CSV:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to import admin data'
+    });
+  }
+});
+
+// Export admin accounts to CSV (superadmin only)
+router.get('/admin-csv-export', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const admins = await sequelize.query(`
+      SELECT 
+        CONCAT('@', b.business_code) as business_handle,
+        a.email as admin_email,
+        a.first_name as admin_first_name,
+        a.last_name as admin_last_name,
+        '****' as admin_password,
+        a.is_active,
+        DATE(a.created_at) as created_date
+      FROM admins a
+      JOIN business b ON a.business_id = b.id
+      ORDER BY a.created_at DESC
+    `, { type: QueryTypes.SELECT });
+
+    // Convert to CSV
+    const headers = [
+      'business_handle',
+      'admin_email', 
+      'admin_first_name',
+      'admin_last_name',
+      'admin_password',
+      'is_active',
+      'created_date'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...admins.map(admin => [
+        admin.business_handle,
+        admin.admin_email,
+        admin.admin_first_name,
+        admin.admin_last_name,
+        admin.admin_password,
+        admin.is_active,
+        admin.created_date
+      ].join(','))
+    ].join('\n');
+
+    res.json({
+      success: true,
+      csv: csvContent,
+      count: admins.length
+    });
+
+  } catch (error) {
+    console.error('Error exporting admin CSV:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export admin data'
+    });
+  }
+});
+
 module.exports = router;

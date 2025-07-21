@@ -6,6 +6,8 @@ import {
   Users,
   Building2,
   BarChart3,
+  Plus,
+  FileText,
   Menu,
   X,
   LogOut,
@@ -21,6 +23,8 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'All Users', href: '/users', icon: Users },
   { name: 'All Businesses', href: '/businesses', icon: Building2 },
+  { name: 'Create Business', href: '/create-business', icon: Plus },
+  { name: 'Admin CSV', href: '/admin-csv', icon: FileText },
   { name: 'User Analytics', href: '/analytics', icon: BarChart3 },
 ];
 

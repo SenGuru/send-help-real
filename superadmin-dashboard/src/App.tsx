@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import AllUsers from './pages/AllUsers';
 import AllBusinesses from './pages/AllBusinesses';
 import UserAnalytics from './pages/UserAnalytics';
+import CreateBusiness from './pages/CreateBusiness';
+import AdminCSV from './pages/AdminCSV';
 import LoginPage from './pages/LoginPage';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -42,6 +44,20 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <UserAnalytics />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/create-business" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CreateBusiness />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin-csv" element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminCSV />
                 </Layout>
               </ProtectedRoute>
             } />
